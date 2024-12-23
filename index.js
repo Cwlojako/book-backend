@@ -24,6 +24,16 @@ app.get('/youlu/detail', async (req, res) => {
 	res.send(detail)
 })
 
+// 有路加购
+app.get('/youlu/addCart', async (req, res) => {
+	const { bookId, buyCount, cookie } = req.query
+	const { data: result } = await axios.get(`https://www.youlu.net/info3/youluBuy.aspx?bookId=${bookId}&buyCount=${buyCount}&category=old`, {
+		headers: { cookie }
+	})
+	res.send(result)
+})
+
+
 // 小谷吖搜索
 app.get('/xiaoguya', async (req, res) => {
 	const { isbn, token } = req.query
@@ -58,8 +68,25 @@ app.get('/xiaoguya/detail', async (req, res) => {
 			res.send({ code: 401, message: '小谷Token已过期，请更新Token'})
 		}
 	}
-	
-	// res.send(result)
+})
+
+// 小谷吖加购
+app.get('/xiaoguya/addCart', async (req, res) => {
+	const { specId, token, count } = req.query
+	try {
+		const { data: result } = await axios.post(`https://api.xiaoguya.com:9898/mall/api/mall/cart/add/${specId}/${count}`, {}, {
+			headers: {
+				'Authorization': `bearer ${token}`
+			}
+		})
+		res.send(result)
+	} catch(err) {
+		if (err.response.status === 401) {
+			res.send({ code: 401, message: '小谷Token已过期，请更新Token'})
+		}else if (err.response.data?.code === 19003) {
+			res.send({ code: 400, message: '该商品限购4个' })
+		}
+	}
 })
 
 // 星辰搜索
@@ -76,6 +103,21 @@ app.get('/xc/detail', async (req, res) => {
 	res.send(result)
 })
 
+// 星辰加购
+app.get('/xc/addCart', async (req, res) => {
+	const { itemId, token, num, conditionId, specificationId } = req.query
+	const { data: result } = await axios.post(`https://book.xclink.cn/xc-app/linkshoppingcart/save`, {
+		itemId, token, num, conditionId, specificationId
+	}, {
+		headers: { "Content-Type": 'application/x-www-form-urlencoded' }
+	})
+	if (result.message === '请登录' && result.status === 2) {
+		res.send({ code: 401, message: '请设置星辰Token' })
+		return
+	}
+	res.send(result)
+})
+
 // 孔夫子搜索
 app.get('/kfz', async (req, res) => {
 	const { isbn, cookie } = req.query
@@ -87,11 +129,28 @@ app.get('/kfz', async (req, res) => {
 
 // 孔夫子详情
 app.get('/kfz/detail', async (req, res) => {
-	const { shopId, itemId } = req.query
-	console.log(`https://book.kongfz.com/${shopId}/${itemId}/`)
-	const { data: html } = await axios.get(`https://book.kongfz.com/${shopId}/${itemId}/`)
+	const { shopId, itemId, cookie } = req.query
+	const { data: html } = await axios.get(`https://book.kongfz.com/${shopId}/${itemId}/`, {
+		headers: { cookie }
+	})
 	res.setHeader('Content-Type', 'text/html')
 	res.send(html)
+})
+
+// 孔夫子加购
+app.get('/kfz/addCart', async (req, res) => {
+	const { itemId, shopId, numbers, cookie } = req.query
+	const { data: result } = await axios.get(`https://cart.kongfz.com/jsonp/add?&itemId=${itemId}&shopId=${shopId}&numbers=${numbers}`, {
+		headers: { cookie }
+	})
+	if (numbers > 1) {
+		const cartId = result.result.cartId + ''
+		await axios.post(`https://cart.kongfz.com/cart-web/pc/v1/cart/updateCartNum`, {}, {
+			params: { cartId, number: numbers },
+			headers: { cookie }
+		})
+	}
+	res.send(result)
 })
 
 app.listen(3000, () => {
