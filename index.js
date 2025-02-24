@@ -4,7 +4,7 @@ const axios = require('axios')
 const app = express()
 
 const corsOptions = {
-  origin: 'http://172.16.11.110:5173'
+  origin: 'http://47.106.130.54:8000'
 }
 
 app.use(cors(corsOptions))
@@ -72,7 +72,7 @@ app.get('/xiaoguya/detail', async (req, res) => {
 
 // 小谷吖加购
 app.get('/xiaoguya/addCart', async (req, res) => {
-	const { specId, token, count } = req.query
+	const { specId, token, count, isbn } = req.query
 	try {
 		const { data: result } = await axios.post(`https://api.xiaoguya.com:9898/mall/api/mall/cart/add/${specId}/${count}`, {}, {
 			headers: {
@@ -84,7 +84,7 @@ app.get('/xiaoguya/addCart', async (req, res) => {
 		if (err.response.status === 401) {
 			res.send({ code: 401, message: '小谷Token已过期，请更新Token'})
 		}else if (err.response.data?.code === 19003) {
-			res.send({ code: 400, message: '该商品限购4个' })
+			res.send({ code: 400, message: '该商品限购4个', data: { isbn } })
 		}
 	}
 })
@@ -152,6 +152,44 @@ app.get('/kfz/addCart', async (req, res) => {
 	}
 	res.send(result)
 })
+
+//孔夫子获取cookie
+app.get('/kfz/getCookie', async (req, res) => {
+	const result = await axios.post(`https://login.kongfz.com/Pc/Login/account`, {
+		loginName: '13202547840',
+		loginPass: 'chenweiqq0'
+	}, {
+		headers: { "Content-Type": 'application/x-www-form-urlencoded' }
+	})
+	const cookie = result.headers['set-cookie'].find(f => f.startsWith('PHPSESSID')).split(';')[0]
+	res.send(cookie)
+})
+
+// 旧书云搜索
+app.get('/jsy', async (req, res) => {
+	const { isbn } = req.query
+	const { data: result } = await axios.get(`https://www.jiushuyunshop.com/api/collect/shop/list?category_id=1&keywords=${isbn}&limit=10&page=1&order=price asc`)
+	res.send(result)
+})
+
+app.get('/jsy/addCart', async (req, res) => {
+	const { bookId, quantity, token } = req.query
+	const { data: result } = await axios.post(`https://www.jiushuyunshop.com/api/collect/shop/car/add`, 
+		{
+			goods_id: bookId,
+			goods_num: quantity
+		},
+		{
+			headers: { 'Authorization': token }
+		}
+	)
+	if (result.code === 400) {
+		res.send({ code: 401, message: '请设置旧书云Token' })
+		return
+	}
+	res.send(result)
+})
+
 
 app.listen(3000, () => {
     console.log("启动成功！")
