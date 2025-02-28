@@ -1,13 +1,86 @@
 const express = require('express')
 const cors = require('cors')
 const axios = require('axios')
+const bodyParser = require("body-parser")
 const app = express()
+const mongoose = require('mongoose')
+const Schema = mongoose.Schema
+const orderSchema = new Schema({
+	uuid: String, // id
+	buyer: String, // 购买人
+	list: Array, // 书单
+	price: Number, // 总价
+	profit: Number, // 利润
+	deliverCount: Number, // 快递数
+	createTime: { type: Date, default: Date.now }
+})
+mongoose.connect('mongodb://47.106.130.54:27017/book')
+const Order = mongoose.model('Order', orderSchema)
 
 const corsOptions = {
-  origin: 'http://47.106.130.54:8000'
+	// origin: 'http://47.106.130.54:8000'
+	origin: '*'
 }
 
 app.use(cors(corsOptions))
+app.use(bodyParser.urlencoded({ extended: false }))
+app.use(bodyParser.json())
+
+// 保存订单
+app.post('/saveOrder', async (req, res) => {
+	try {
+		const { uuid, buyer, list, price, deliverCount, profit } = req.body
+		const order = new Order({ uuid, buyer, list, price, deliverCount, profit })
+		await order.save()
+		res.send({ code: 200, message: '保存成功', order })
+	} catch(error) {
+		res.status(400).send(error)
+	}
+	
+})
+
+// 更新订单
+app.put('/order/:uuid', async (req, res) => {
+    try {
+        const order = await Order.findOneAndUpdate({ uuid: req.params.uuid }, req.body, { new: true, runValidators: true })
+        if (!order) {
+            return res.status(404).send()
+        }
+        res.send(order)
+    } catch (error) {
+		console.log(error)
+        res.status(400).send(error)
+    }
+})
+
+// 删除订单
+app.delete('/order/:uuid', async (req, res) => {
+    try {
+        const order = await Order.findOneAndDelete(req.params.uuid)
+        if (!order) {
+            return res.status(404).send()
+        }
+        res.send(order)
+    } catch (error) {
+        res.status(500).send(error)
+    }
+})
+
+// 获取订单列表
+app.get('/orderList', async (req, res) => {
+    const { pageSize = 10, pageNo = 1, buyer } = req.query
+    const limit = parseInt(pageSize)
+    const skip = (parseInt(pageNo) - 1) * limit
+	const query = buyer ? { buyer: new RegExp(buyer, 'i') } : {}
+
+    try {
+        const orders = await Order.find(query).sort({ createTime: -1 }).limit(limit).skip(skip)
+        const total = await Order.countDocuments(query)
+        res.send({ total, data: orders })
+    } catch (error) {
+        res.status(500).send(error)
+    }
+})
 
 // 有路搜索
 app.get('/youlu', async (req, res) => {
@@ -172,6 +245,7 @@ app.get('/jsy', async (req, res) => {
 	res.send(result)
 })
 
+// 旧书云加购
 app.get('/jsy/addCart', async (req, res) => {
 	const { bookId, quantity, token } = req.query
 	const { data: result } = await axios.post(`https://www.jiushuyunshop.com/api/collect/shop/car/add`, 
@@ -189,7 +263,6 @@ app.get('/jsy/addCart', async (req, res) => {
 	}
 	res.send(result)
 })
-
 
 app.listen(3000, () => {
     console.log("启动成功！")
