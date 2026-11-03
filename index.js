@@ -921,75 +921,75 @@ app.get('/img-proxy', async (req, res) => {
 })
 
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
-const DOUBAO_API_KEY = 'ark-3c237d7c-a190-4714-a1ec-556aa76935f5-4efef'
-const DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/responses'
-const DOUBAO_MODEL_ID = 'ep-20260906221940-nww9g' // 视觉模型
+// const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
+// const DOUBAO_API_KEY = 'ark-3c237d7c-a190-4714-a1ec-556aa76935f5-4efef'
+// const DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/responses'
+// const DOUBAO_MODEL_ID = 'ep-20260906221940-nww9g' // 视觉模型
 
-// 图片压缩（长边 1024，省 token）
-async function compress(buffer) {
-	const image = await Jimp.read(buffer)
-	const max = Math.max(image.bitmap.width, image.bitmap.height)
-	if (max > 1024) {
-		if (image.bitmap.width >= image.bitmap.height) {
-			image.resize(1024, Jimp.AUTO)
-		} else {
-			image.resize(Jimp.AUTO, 1024)
-		}
-	}
-	image.quality(85)
-	const result = await image.getBufferAsync(Jimp.MIME_JPEG)
-	return result.toString('base64')
-}
+// // 图片压缩（长边 1024，省 token）
+// async function compress(buffer) {
+// 	const image = await Jimp.read(buffer)
+// 	const max = Math.max(image.bitmap.width, image.bitmap.height)
+// 	if (max > 1024) {
+// 		if (image.bitmap.width >= image.bitmap.height) {
+// 			image.resize(1024, Jimp.AUTO)
+// 		} else {
+// 			image.resize(Jimp.AUTO, 1024)
+// 		}
+// 	}
+// 	image.quality(85)
+// 	const result = await image.getBufferAsync(Jimp.MIME_JPEG)
+// 	return result.toString('base64')
+// }
 
-// 调豆包
-async function ocr(imageBuffer) {
-	const b64 = await compress(imageBuffer)
-	const res = await fetch(DOUBAO_API_URL, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DOUBAO_API_KEY}` },
-		body: JSON.stringify({
-			model: DOUBAO_MODEL_ID,
-			messages: [{
-				role: 'user',
-				content: [
-					{ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } },
-					{ type: 'text', text: '找出图片中所有的ISBN书号（13位数字，通常以978或979开头，可能带有连字符，如978-7-5690-5636-5）。只返回JSON：{"isbns":["9787569056365"]}，书号请去掉连字符只保留13位数字。找不到返回{"isbns":[]}。不要其他内容。' }
-				]
-			}],
-			max_tokens: 2048,
-			temperature: 0
-		})
-	})
-	const json = await res.json()
-	if (!res.ok || json.error) {
-			throw new Error(json.error?.message || `豆包API错误: ${res.status}`)
-		}
-		console.log('[OCR] 豆包响应:', JSON.stringify(json).slice(0, 200))
-	// 从 AI 返回中提取 JSON
-	const text = json.choices[0].message.content.replace(/```json|```/g, '').trim()
-	const { isbns } = JSON.parse(text)
-	// ISBN 校验位过滤
-	const valid = isbns.filter(s => {
-		if (!/^\d{13}$/.test(s) || !s.startsWith('9787')) return false
-		let sum = 0
-		for (let i = 0; i < 12; i++) sum += +s[i] * (i % 2 === 0 ? 1 : 3)
-		return (10 - (sum % 10)) % 10 === +s[12]
-	})
-	return valid
-}
+// // 调豆包
+// async function ocr(imageBuffer) {
+// 	const b64 = await compress(imageBuffer)
+// 	const res = await fetch(DOUBAO_API_URL, {
+// 		method: 'POST',
+// 		headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DOUBAO_API_KEY}` },
+// 		body: JSON.stringify({
+// 			model: DOUBAO_MODEL_ID,
+// 			messages: [{
+// 				role: 'user',
+// 				content: [
+// 					{ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } },
+// 					{ type: 'text', text: '找出图片中所有的ISBN书号（13位数字，通常以978或979开头，可能带有连字符，如978-7-5690-5636-5）。只返回JSON：{"isbns":["9787569056365"]}，书号请去掉连字符只保留13位数字。找不到返回{"isbns":[]}。不要其他内容。' }
+// 				]
+// 			}],
+// 			max_tokens: 2048,
+// 			temperature: 0
+// 		})
+// 	})
+// 	const json = await res.json()
+// 	if (!res.ok || json.error) {
+// 			throw new Error(json.error?.message || `豆包API错误: ${res.status}`)
+// 		}
+// 		console.log('[OCR] 豆包响应:', JSON.stringify(json).slice(0, 200))
+// 	// 从 AI 返回中提取 JSON
+// 	const text = json.choices[0].message.content.replace(/```json|```/g, '').trim()
+// 	const { isbns } = JSON.parse(text)
+// 	// ISBN 校验位过滤
+// 	const valid = isbns.filter(s => {
+// 		if (!/^\d{13}$/.test(s) || !s.startsWith('9787')) return false
+// 		let sum = 0
+// 		for (let i = 0; i < 12; i++) sum += +s[i] * (i % 2 === 0 ? 1 : 3)
+// 		return (10 - (sum % 10)) % 10 === +s[12]
+// 	})
+// 	return valid
+// }
 
-app.post('/ocr/extract-isbn', upload.single('image'), async (req, res) => {
-	try {
-		if (!req.file) return res.status(400).json({ error: '未提供图片' })
-		const isbns = await ocr(req.file.buffer)
-		console.log(`[OCR] 识别到 ${isbns.length} 个 ISBN:`, isbns)
-		res.json({ valid: isbns.map(isbn => ({ isbn })), invalid: [] })
-	} catch (err) {
-		console.error('[OCR]', err)
-		res.status(500).json({ error: err.message })
-	}
-})
+// app.post('/ocr/extract-isbn', upload.single('image'), async (req, res) => {
+// 	try {
+// 		if (!req.file) return res.status(400).json({ error: '未提供图片' })
+// 		const isbns = await ocr(req.file.buffer)
+// 		console.log(`[OCR] 识别到 ${isbns.length} 个 ISBN:`, isbns)
+// 		res.json({ valid: isbns.map(isbn => ({ isbn })), invalid: [] })
+// 	} catch (err) {
+// 		console.error('[OCR]', err)
+// 		res.status(500).json({ error: err.message })
+// 	}
+// })
 
 app.listen(3000, () => {
     console.log("启动成功！")
