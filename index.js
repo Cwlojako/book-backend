@@ -295,7 +295,7 @@ app.get('/youlu/addCart', async (req, res) => {
 app.get('/xiaoguya', async (req, res) => {
 	const { isbn, token } = req.query
 	try {
-		const { data: result } = await axios.get(`https://api.xiaoguya.com:9898/mall/api/mall/product/search/searchProduct?current=1&size=20&keyword=${isbn}`, {
+		const { data: result } = await axios.get(`https://api.xiaoguya.com:9898/mall/api/product/search_v2/searchProduct?current=1&size=20&keyword=${isbn}`, {
 			headers: {
 				'Authorization': token,
 				'Content-Type': 'application/json'
@@ -311,9 +311,9 @@ app.get('/xiaoguya', async (req, res) => {
 
 // 小谷吖详情
 app.get('/xiaoguya/detail', async (req, res) => {
-	const { bookId, token } = req.query
+	const { isbn, token } = req.query
 	try {
-		const { data: result } = await axios.get(`https://api.xiaoguya.com:9898/mall/api/mall/product/infoById/${bookId}`, {
+		const { data: result } = await axios.get(`https://api.xiaoguya.com:9898/mall/api/mall/product/infoBySn/${isbn}`, {
 			headers: {
 				'Authorization': token,
 				'Content-Type': 'application/json'
